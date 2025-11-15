@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Examen Final DW</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            width: 380px;
+            margin: 20px;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .msg {
+            margin-top: 10px;
+            font-size: 13px;
+            min-height: 18px;
+        }
+
+        .msg.error {
+            color: #c0392b;
+        }
+
+        .msg.ok {
+            color: #27ae60;
+        }
+
+        hr {
+            margin: 20px 0;
+            border: 0;
+            border-top: 1px solid #eee;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        li {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+
+        li:last-child {
+            border-bottom: none;
+        }
+
+        .msg-meta {
+            font-size: 11px;
+            color: #888;
+            display: block;
+        }
+
+        .msg-text {
+            font-size: 13px;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            padding: 8px 0;
+            font-size: 12px;
+            background: #f5f5f5;
+            color: #555;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- LADO IZQUIERDO: Serie I y II -->
+    <div class="card">
+        <h1>Login Exmen Final DW</h1>
+
+        <!-- SERIE I: LOGIN -->
+        <form id="loginForm">
+            <label for="username">Usuario</label>
+            <input type="text" id="username" name="username" placeholder="Ej: chernandezl12" required />
+
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" placeholder="123456a" required />
+
+            <button type="submit" id="btnLogin">Iniciar sesión</button>
+        </form>
+
+        <div id="loginMessage" class="msg"></div>
+
+        <hr>
+
+        <!-- SERIE II: ENVÍO DE MENSAJES -->
+        <h2>Enviar mensaje</h2>
+
+        <form id="messageForm">
+            <label for="codSala">Código de sala</label>
+            <input type="number" id="codSala" name="codSala" value="0" min="0" />
+            <div class="hint">El examen indica usar <strong>Cod_Sala = 0</strong>.</div>
+
+            <label for="contenido">Contenido del mensaje</label>
+            <textarea id="contenido" name="contenido" placeholder="Escribe tu mensaje aquí..." required></textarea>
+
+            <button type="submit" id="btnSend">Enviar mensaje</button>
+        </form>
+
+        <div id="messageStatus" class="msg"></div>
+
+    </div>
+
+    <!-- LADO DERECHO: Serie III -->
+    <div class="card">
+        <h2>Historial de mensajes</h2>
+        <p class="hint">
+            Serie III: mensajes desde SQL Server<br>
+            <strong>db_DesaWebDevUMG · [dbo].[Chat_Mensaje]</strong>
+        </p>
+
+        <button type="button" id="btnLoadMessages">Cargar mensajes</button>
+        <div id="loadStatus" class="msg"></div>
+
+        <ul id="messagesList">
+            <!-- Aquí se insertan los mensajes -->
+        </ul>
+    </div>
+
+    <script>
+        // ====== CONFIG ======
+        const API_LOGIN_URL = 'https://backcvbgtmdesa.azurewebsites.net/api/login/authenticate';
+        const API_MESSAGES_URL = 'https://backcvbgtmdesa.azurewebsites.net/api/Mensajes'; // Serie II
+        const API_MESSAGES_DB = 'http://localhost:3000/api/messages'; // Serie III 
+
+        // ====== ELEMENTOS ======
+        const loginForm = document.getElementById('loginForm');
+        const btnLogin = document.getElementById('btnLogin');
+        const loginMsg = document.getElementById('loginMessage');
+
+        const messageForm = document.getElementById('messageForm');
+        const btnSend = document.getElementById('btnSend');
+        const messageStatus = document.getElementById('messageStatus');
+
+        const btnLoadMessages = document.getElementById('btnLoadMessages');
+        const loadStatus = document.getElementById('loadStatus');
+        const messagesList = document.getElementById('messagesList');
+
+        // ====== SERIE I: LOGIN ======
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginMsg.textContent = '';
+            loginMsg.className = 'msg';
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                loginMsg.textContent = 'Completa usuario y contraseña.';
+                loginMsg.classList.add('error');
+                return;
+            }
+
+            btnLogin.disabled = true;
+            btnLogin.textContent = 'Ingresando...';
+
+            try {
+                const response = await fetch(API_LOGIN_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        Username: username,
+                        Password: password
+                    })
+                });
+
+                if (!response.ok) {
+                    loginMsg.textContent = 'Credenciales incorrectas o error en el login.';
+                    loginMsg.classList.add('error');
+                    console.error('Error HTTP login:', response.status, await response.text());
+                } else {
+                    const data = await response.json();
+                    console.log('Respuesta login:', data);
+
+                    let token = data.token || data.accessToken || data.Token || data.bearerToken;
+
+                    localStorage.setItem('authResponse', JSON.stringify(data));
+                    localStorage.setItem('username', username);
+
+                    if (token) {
+                        localStorage.setItem('authToken', token);
+                        loginMsg.textContent = 'Login exitoso. Token guardado en localStorage.';
+                        loginMsg.classList.add('ok');
+                    } else {
+                        loginMsg.textContent = 'Login ok, pero no se encontró el campo del token. Revisa la respuesta en consola.';
+                        loginMsg.classList.add('error');
+                    }
+                }
+            } catch (error) {
+                console.error('Error en fetch login:', error);
+                loginMsg.textContent = 'Error de conexión con la API de autenticación.';
+                loginMsg.classList.add('error');
+            } finally {
+                btnLogin.disabled = false;
+                btnLogin.textContent = 'Iniciar sesión';
+            }
+        });
+
+        // ====== SERIE II: ENVÍO DE MENSAJES ======
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            messageStatus.textContent = '';
+            messageStatus.className = 'msg';
+
+            const token = localStorage.getItem('authToken');
+            const username = localStorage.getItem('username');
+            const codSala = parseInt(document.getElementById('codSala').value || '0', 10);
+            const contenido = document.getElementById('contenido').value.trim();
+
+            if (!token) {
+                messageStatus.textContent = 'No hay token. Primero inicia sesión (Serie I).';
+                messageStatus.classList.add('error');
+                return;
+            }
+
+            if (!username) {
+                messageStatus.textContent = 'No se encontró el usuario del login. Vuelve a iniciar sesión.';
+                messageStatus.classList.add('error');
+                return;
+            }
+
+            if (!contenido) {
+                messageStatus.textContent = 'Escribe un mensaje antes de enviarlo.';
+                messageStatus.classList.add('error');
+                return;
+            }
+
+            const body = {
+                Cod_Sala: codSala,
+                Login_Emisor: username,
+                Contenido: contenido
+            };
+
+            btnSend.disabled = true;
+            btnSend.textContent = 'Enviando...';
+
+            try {
+                const response = await fetch(API_MESSAGES_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error HTTP mensajes:', response.status, errorText);
+                    messageStatus.textContent = 'Error al enviar el mensaje. Revisa consola.';
+                    messageStatus.classList.add('error');
+                } else {
+                    const data = await response.json().catch(() => null);
+                    console.log('Respuesta envío mensaje:', data);
+
+                    messageStatus.textContent = 'Mensaje enviado correctamente.';
+                    messageStatus.classList.add('ok');
+                    document.getElementById('contenido').value = '';
+                }
+            } catch (error) {
+                console.error('Error en fetch mensajes:', error);
+                messageStatus.textContent = 'Error de conexión con la API de mensajes.';
+                messageStatus.classList.add('error');
+            } finally {
+                btnSend.disabled = false;
+                btnSend.textContent = 'Enviar mensaje';
+            }
+        });
+
+        // ====== SERIE III: CARGAR MENSAJES DESDE SQL SERVER ======
+        btnLoadMessages.addEventListener('click', loadMessages);
+
+        async function loadMessages() {
+            loadStatus.textContent = 'Cargando mensajes desde SQL Server...';
+            loadStatus.className = 'msg';
+            messagesList.innerHTML = '';
+
+            try {
+                const res = await fetch(API_MESSAGES_DB);
+                if (!res.ok) {
+                    throw new Error('HTTP ' + res.status);
+                }
+                const data = await res.json();
+                console.log('Mensajes desde SQL Server:', data);
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    loadStatus.textContent = 'No hay mensajes en la tabla Chat_Mensaje.';
+                    loadStatus.classList.add('ok');
+                    return;
+                }
+
+                loadStatus.textContent = 'Mensajes cargados correctamente.';
+                loadStatus.classList.add('ok');
+                messagesList.innerHTML = '';
+
+                // Detectamos posibles columnas (Contenido, Emisor, Fecha) de forma dinámica
+                const first = data[0];
+                const keys = Object.keys(first);
+
+                const contenidoKey = keys.find(k => /cont/i.test(k)) || keys[0];
+                const emisorKey = keys.find(k => /login|user|emis/i.test(k));
+                const fechaKey = keys.find(k => /fec|fecha|date|hora|time/i.test(k));
+
+                // Orden cronológico (ya vienen ordenados por el ORDER BY 1 ASC del server)
+                data.forEach(row => {
+                    const li = document.createElement('li');
+
+                    const emisor = emisorKey ? (row[emisorKey] ?? '') : '';
+                    const fecha = fechaKey ? (row[fechaKey] ?? '') : '';
+                    const contenido = row[contenidoKey];
+
+                    const metaSpan = document.createElement('span');
+                    metaSpan.className = 'msg-meta';
+                    metaSpan.textContent = `${fecha ? '[' + fecha + '] ' : ''}${emisor ? emisor : ''}`;
+
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'msg-text';
+                    textSpan.textContent = contenido;
+
+                    li.appendChild(metaSpan);
+                    li.appendChild(document.createElement('br'));
+                    li.appendChild(textSpan);
+
+                    messagesList.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Error al cargar mensajes:', err);
+                loadStatus.textContent = 'Error al cargar mensajes desde SQL Server.';
+                loadStatus.classList.add('error');
+            }
+        }
+
+        // Autocompletar datos del examen
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('username').value = 'chernandezl12';
+            document.getElementById('password').value = '123456a';
+        });
+    </script>
+    <footer class="footer">Examen final de Desarrollo Web, creado por Carlos Eduardo Hernández Lecointe -
+        1890-18-17646 ®</footer>
+</body>
+
+</html>
