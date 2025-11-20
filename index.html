@@ -221,6 +221,13 @@
             max-height: 260px;
         }
 
+        /* Estados deshabilitados (antes de login) */
+        input:disabled,
+        textarea:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         /* BOTONES */
 
         button {
@@ -400,7 +407,7 @@
             border-radius: 999px;
         }
 
-        /* FOOTER ABAJO, SIN LADO DERECHO RARO */
+        /* FOOTER ABAJO */
 
         .footer {
             margin-top: 18px;
@@ -483,7 +490,6 @@
         <header class="app-header">
             <div class="title-group">
                 <div class="title">Examen Final · Desarrollo Web</div>
-
             </div>
             <div class="badge-exam">
                 <span class="badge-dot"></span>
@@ -519,6 +525,9 @@
                     </form>
 
                     <div id="loginMessage" class="msg"></div>
+                    <div id="lockHint" class="msg">
+                        Debes iniciar sesión para poder enviar mensajes y ver el historial.
+                    </div>
 
                     <hr>
 
@@ -534,16 +543,19 @@
                     <form id="messageForm">
                         <div class="field-group">
                             <label for="codSala">Código de sala</label>
-                            <input type="number" id="codSala" name="codSala" value="0" min="0" />
+                            <!-- INICIALMENTE DESHABILITADO -->
+                            <input type="number" id="codSala" name="codSala" value="0" min="0" disabled />
                         </div>
 
                         <div class="field-group">
                             <label for="contenido">Contenido del mensaje</label>
-                            <textarea id="contenido" name="contenido" placeholder="Escribe tu mensaje aquí..."
-                                required></textarea>
+                            <!-- INICIALMENTE DESHABILITADO -->
+                            <textarea id="contenido" name="contenido" placeholder="Escribe tu mensaje aquí..." required
+                                disabled></textarea>
                         </div>
 
-                        <button type="submit" id="btnSend">Enviar mensaje</button>
+                        <!-- INICIALMENTE DESHABILITADO -->
+                        <button type="submit" id="btnSend" disabled>Enviar mensaje</button>
                     </form>
 
                     <div id="messageStatus" class="msg"></div>
@@ -561,7 +573,8 @@
                         <span class="pill pill-meta">SQL Server · Lectura</span>
                     </div>
 
-                    <button type="button" id="btnLoadMessages">Cargar mensajes</button>
+                    <!-- INICIALMENTE DESHABILITADO -->
+                    <button type="button" id="btnLoadMessages" disabled>Cargar mensajes</button>
                     <div id="loadStatus" class="msg"></div>
 
                     <ul id="messagesList">
@@ -594,6 +607,22 @@
         const btnLoadMessages = document.getElementById('btnLoadMessages');
         const loadStatus = document.getElementById('loadStatus');
         const messagesList = document.getElementById('messagesList');
+
+        // ====== ESTADO DE AUTENTICACIÓN (solo esta sesión de página) ======
+        let isLoggedIn = false;
+
+        function setProtectedEnabled(enabled) {
+            const disabled = !enabled;
+
+            const codSala = document.getElementById('codSala');
+            const contenido = document.getElementById('contenido');
+
+            if (codSala) codSala.disabled = disabled;
+            if (contenido) contenido.disabled = disabled;
+
+            btnSend.disabled = disabled;
+            btnLoadMessages.disabled = disabled;
+        }
 
         // ====== SERIE I: LOGIN ======
         loginForm.addEventListener('submit', async (e) => {
@@ -635,12 +664,18 @@
 
                     let token = data.token || data.accessToken || data.Token || data.bearerToken;
 
+                    // Guardamos datos en localStorage igual que antes
                     localStorage.setItem('authResponse', JSON.stringify(data));
                     localStorage.setItem('username', username);
 
                     if (token) {
                         localStorage.setItem('authToken', token);
-                        loginMsg.textContent = 'Login exitoso. Token guardado en localStorage.';
+
+                        // 🔐 Login válido en ESTA sesión
+                        isLoggedIn = true;
+                        setProtectedEnabled(true);
+
+                        loginMsg.textContent = 'Login exitoso. Token guardado y se habilitaron las demás secciones.';
                         loginMsg.classList.add('ok');
                     } else {
                         loginMsg.textContent = 'Login ok, pero no se encontró el campo del token. Revisa la respuesta en consola.';
@@ -663,13 +698,20 @@
             messageStatus.textContent = '';
             messageStatus.className = 'msg';
 
+            // 👇 Nuevo candado: requiere login en esta sesión
+            if (!isLoggedIn) {
+                messageStatus.textContent = 'Primero debes iniciar sesión (Serie I) para enviar mensajes.';
+                messageStatus.classList.add('error');
+                return;
+            }
+
             const token = localStorage.getItem('authToken');
             const username = localStorage.getItem('username');
             const codSala = parseInt(document.getElementById('codSala').value || '0', 10);
             const contenido = document.getElementById('contenido').value.trim();
 
             if (!token) {
-                messageStatus.textContent = 'No hay token. Primero inicia sesión (Serie I).';
+                messageStatus.textContent = 'No hay token. Vuelve a iniciar sesión.';
                 messageStatus.classList.add('error');
                 return;
             }
@@ -732,8 +774,18 @@
         btnLoadMessages.addEventListener('click', loadMessages);
 
         async function loadMessages() {
-            loadStatus.textContent = 'Cargando mensajes desde SQL Server...';
+            loadStatus.textContent = '';
             loadStatus.className = 'msg';
+
+            // 👇 También pedimos login para ver historial
+            if (!isLoggedIn) {
+                loadStatus.textContent = 'Debes iniciar sesión (Serie I) antes de cargar los mensajes.';
+                loadStatus.classList.add('error');
+                return;
+            }
+
+            loadStatus.textContent = 'Cargando mensajes desde SQL Server...';
+
             messagesList.innerHTML = '';
 
             try {
@@ -800,12 +852,18 @@
             }
         }
 
-        // Autocompletar datos del examen
+        // Autocompletar datos del examen + bloquear secciones al inicio
         window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('username').value = 'chernandezl12';
             document.getElementById('password').value = '123456a';
+
+            // Al entrar a la página, todo lo sensible deshabilitado
+            setProtectedEnabled(false);
+
+            messageStatus.textContent = 'Inicia sesión para poder enviar mensajes.';
+            messageStatus.classList.add('error');
+
+            loadStatus.textContent = 'Inicia sesión para ver el historial.';
+            loadStatus.classList.add('error');
         });
     </script>
-</body>
-
-</html>
