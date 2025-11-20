@@ -39,7 +39,7 @@ app.get('/api/messages', async (req, res) => {
 
         // Traemos los últimos 100 mensajes, ordenados por la primera columna (suele ser el Id)
         const result = await pool.request().query(`
-      SELECT TOP 100 *
+      SELECT TOP 1000 *
       FROM [dbo].[Chat_Mensaje]
       ORDER BY 1 ASC
     `);
