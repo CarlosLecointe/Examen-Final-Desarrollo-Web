@@ -7,7 +7,7 @@
     <title>Examen Final DW</title>
     <style>
         :root {
-            /* Paleta tipo Disney+ */
+            /* Paleta de estilos*/
             --bg-1: #020617;
             --bg-2: #02091e;
             --bg-3: #0b1120;
@@ -591,6 +591,7 @@
 
     <script>
         // ====== CONFIG ======
+        // ====== CONFIG ======
         const API_LOGIN_URL = 'https://backcvbgtmdesa.azurewebsites.net/api/login/authenticate';
         const API_MESSAGES_URL = 'https://backcvbgtmdesa.azurewebsites.net/api/Mensajes'; // Serie II
         const API_MESSAGES_DB = 'http://localhost:3000/api/messages'; // Serie III
@@ -608,20 +609,18 @@
         const loadStatus = document.getElementById('loadStatus');
         const messagesList = document.getElementById('messagesList');
 
-        // ====== ESTADO DE AUTENTICACIÓN (solo esta sesión de página) ======
+        const codSalaInput = document.getElementById('codSala');
+        const contenidoInput = document.getElementById('contenido');
+
+        // Nuevo flag de sesión de EXAMEN (no solo por token)
         let isLoggedIn = false;
 
+        // Habilitar / deshabilitar Serie II y III
         function setProtectedEnabled(enabled) {
-            const disabled = !enabled;
-
-            const codSala = document.getElementById('codSala');
-            const contenido = document.getElementById('contenido');
-
-            if (codSala) codSala.disabled = disabled;
-            if (contenido) contenido.disabled = disabled;
-
-            btnSend.disabled = disabled;
-            btnLoadMessages.disabled = disabled;
+            codSalaInput.disabled = !enabled;
+            contenidoInput.disabled = !enabled;
+            btnSend.disabled = !enabled;
+            btnLoadMessages.disabled = !enabled;
         }
 
         // ====== SERIE I: LOGIN ======
@@ -664,16 +663,22 @@
 
                     let token = data.token || data.accessToken || data.Token || data.bearerToken;
 
-                    // Guardamos datos en localStorage igual que antes
                     localStorage.setItem('authResponse', JSON.stringify(data));
                     localStorage.setItem('username', username);
 
                     if (token) {
                         localStorage.setItem('authToken', token);
 
-                        // 🔐 Login válido en ESTA sesión
+                        // Login válido en esta sesión
                         isLoggedIn = true;
                         setProtectedEnabled(true);
+
+                        // Limpiar / actualizar mensajes de “inicia sesión…”
+                        messageStatus.textContent = '';
+                        messageStatus.className = 'msg';
+
+                        loadStatus.textContent = 'Haz clic en "Cargar mensajes" para ver el historial.';
+                        loadStatus.className = 'msg ok';
 
                         loginMsg.textContent = 'Login exitoso. Token guardado y se habilitaron las demás secciones.';
                         loginMsg.classList.add('ok');
@@ -698,7 +703,7 @@
             messageStatus.textContent = '';
             messageStatus.className = 'msg';
 
-            // 👇 Nuevo candado: requiere login en esta sesión
+            // Candado: requiere login en esta sesión
             if (!isLoggedIn) {
                 messageStatus.textContent = 'Primero debes iniciar sesión (Serie I) para enviar mensajes.';
                 messageStatus.classList.add('error');
@@ -707,8 +712,8 @@
 
             const token = localStorage.getItem('authToken');
             const username = localStorage.getItem('username');
-            const codSala = parseInt(document.getElementById('codSala').value || '0', 10);
-            const contenido = document.getElementById('contenido').value.trim();
+            const codSala = parseInt(codSalaInput.value || '0', 10);
+            const contenido = contenidoInput.value.trim();
 
             if (!token) {
                 messageStatus.textContent = 'No hay token. Vuelve a iniciar sesión.';
@@ -758,7 +763,7 @@
 
                     messageStatus.textContent = 'Mensaje enviado correctamente.';
                     messageStatus.classList.add('ok');
-                    document.getElementById('contenido').value = '';
+                    contenidoInput.value = '';
                 }
             } catch (error) {
                 console.error('Error en fetch mensajes:', error);
@@ -774,18 +779,15 @@
         btnLoadMessages.addEventListener('click', loadMessages);
 
         async function loadMessages() {
-            loadStatus.textContent = '';
-            loadStatus.className = 'msg';
-
-            // 👇 También pedimos login para ver historial
+            // Candado también aquí (solo por si acaso)
             if (!isLoggedIn) {
-                loadStatus.textContent = 'Debes iniciar sesión (Serie I) antes de cargar los mensajes.';
-                loadStatus.classList.add('error');
+                loadStatus.textContent = 'Primero debes iniciar sesión (Serie I) para ver el historial.';
+                loadStatus.className = 'msg error';
                 return;
             }
 
             loadStatus.textContent = 'Cargando mensajes desde SQL Server...';
-
+            loadStatus.className = 'msg';
             messagesList.innerHTML = '';
 
             try {
@@ -852,18 +854,19 @@
             }
         }
 
-        // Autocompletar datos del examen + bloquear secciones al inicio
+        // ====== ESTADO INICIAL (al abrir la página) ======
         window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('username').value = 'chernandezl12';
             document.getElementById('password').value = '123456a';
 
-            // Al entrar a la página, todo lo sensible deshabilitado
+            // Desactivar secciones protegidas hasta que haya login
             setProtectedEnabled(false);
 
+            // Mensajes iniciales
             messageStatus.textContent = 'Inicia sesión para poder enviar mensajes.';
-            messageStatus.classList.add('error');
+            messageStatus.className = 'msg error';
 
             loadStatus.textContent = 'Inicia sesión para ver el historial.';
-            loadStatus.classList.add('error');
+            loadStatus.className = 'msg error';
         });
     </script>
